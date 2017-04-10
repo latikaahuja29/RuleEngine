@@ -57,15 +57,15 @@ engine.addRule({
  * note: facts may be loaded asynchronously at runtime; see the advanced example below
  */
 let facts = {
-  personalFoulCount: 6,
-  gameDuration: 40
+  personalFoulCount: 5,
+  gameDuration: 30
 }
 
 // run the engine
 engine
   .run(facts)
   .then(events => { // run() return events with truthy conditions
-    events.map(event => console.log(event.params.message.red))
+    events.map(event => console.log(event.params.message.green))
   })
   .catch(console.log)
 

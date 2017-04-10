@@ -31,8 +31,10 @@ module.exports = {
     var message = 'loading account information for "' + accountId + '"'
     console.log(message.dim)
     return new Promise((resolve, reject) => {
+                console.log("promised")
       setImmediate(() => {
         resolve(accountData[accountId])
+        console.log("resolved")
       })
     })
   }

@@ -10,7 +10,7 @@
  *   DEBUG=json-rules-engine node ./examples/01-hello-world.js
  */
 
-require('colors')
+//require('colors')
 let Engine = require('../dist').Engine
 let Rule = require('../dist').Rule
 
