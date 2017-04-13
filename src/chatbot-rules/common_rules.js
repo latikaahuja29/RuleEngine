@@ -1,68 +1,42 @@
 'use strict';
-let Engine = require('../../dist').Engine;
-let engine = new Engine();
+let Engine = require('/home/pbadmin/2017/json-rules-engine/dist').Engine;
+//let engine = new Engine();
 let apiClient = require('./database-data');
-let facts = { accountId: 'result', accountId1 : 'result1'};
+var Db = require('mongodb').Db;
+var Server = require('mongodb').Server;
+let facts = { accountId: 'result'};
+var sync    = require('synchronize');
 var MongoClient = require('mongodb').MongoClient;
 var assert = require('assert');
 var url = 'mongodb://10.0.8.62:27017/rocketchat_test';
+var mongo = require('mongoskin');
 var agentId = 1, actionId=1;
 var current_response = getCurrentResponse();
 var previous_response = getPreviousResponse();
-var another_response = getAnotherResponse();
+var another_response = getAnotherResponse()
 
-  MongoClient.connect(url, function(err, db) {
-  assert.equal(null, err);
-  findRule(db, current_response, previous_response, another_response, function() {
-      db.close();
-  });
-  console.log(c);
-});
+var callRules = function() {
+      var returnValue;
+     var db = mongo.db(url, {native_parser:true});
+      returnValue = findRule(db, current_response, previous_response, another_response);
+      console.log("returnvalueis:", returnValue);
+      return returnValue;
+};
 
 
-var findRule = function(db, current_response, previous_response, another_response, callback) {
+module.exports = {
+  callRules: callRules
+};
+
+var findRule = function(db, current_response, previous_response, another_response) {
    var count = 0;
    var returnValue;
-   var cursor = db.collection('rocketchat_livechat_Chatbot_Rules').find({"agentId":agentId,
+   var cursor = db.collection('rocketchat_livechat_Chatbot_Rules2').find({"agentId":agentId,
                 "actionId":actionId}).sort({"priority":-1});
    cursor.each(function(err, doc) {
       assert.equal(err, null);
       if (doc !== null) {
-         if (doc.type === "pathBased") {
-            var conditions = JSON.parse(JSON.stringify(doc.conditions)); 
-            var previousData = JSON.parse(JSON.stringify(previous_response)); 
-            var docProperty = doc.conditions.all[0].property;
-            var docProperty1 = doc.conditions.all[0].property1;
-            var docProperty2 = doc.conditions.all[0].property2;
-            var data;
-            for (var key in previousData) {
-                if (key.indexOf(docProperty) !== -1) {
-                    data = previousData[key][docProperty1][docProperty2];
-                }
-            }
-            conditions.all[0].value = data;
-            engine.addRule({conditions : conditions, 
-                            event : doc.event});      
-            var docFact = doc.fact;
-            engine.addFact(docFact, function (params, almanac) {
-            return almanac.factValue('accountId')
-            .then(accountId => {
-            return apiClient.getCurrentData(accountId, getUpdatedCurrentResponse(current_response, 
-            another_response));
-            
-    });
-     });
-       engine.run(facts)
-            .then(events => {
-            if (!events.length)  
-                {return;}
-            else {
-                count +=1;
-                if (count>1) return;
-                returnValue = events.map(event => event.params);
-                }}).catch(console.log);
-          
-         } else {
+             console.log("valuebased");
             let engine = new Engine();
             var event = doc.event;
             if (doc.event.isDynamism === true) {
@@ -77,6 +51,7 @@ var findRule = function(db, current_response, previous_response, another_respons
             engine.addRule({conditions : doc.conditions, 
                             event : event}); 
             var docFact = doc.fact;
+            console.log("added fact", docFact);
             engine.addFact(docFact, function (params, almanac) {
             return almanac.factValue('accountId')
             .then(accountId => {
@@ -85,17 +60,22 @@ var findRule = function(db, current_response, previous_response, another_respons
       });
          engine.run(facts)
             .then(events => {
-            if (!events.length)  return;
+            if (!events.length)  {
+               console.log("no evenst length", events.length);
+                return;
+            }
             else {
+                 console.log("evenst length", events.length);
                 count +=1;
                 if (count>1) return;
-                returnValue = events.map(event => event.params);
+                events.map(event => event.params);
+                returnValue = event.params;
+                return returnValue;
             }}).catch(console.log);
-         }
             
     }
     else {
-          callback();
+         // callback();
         }
    });
    return returnValue;
