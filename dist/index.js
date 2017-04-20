@@ -16,39 +16,75 @@ var url = 'mongodb://10.0.8.62:27017/rocketchat_test';
 app.post('/rules', jsonParser, function (req, res) {
     var current_response = req.body.current_response;
     var previous_response = req.body.previous_response;
-     MongoClient.connect(url, function(err, db) {
-         var engine = new Engine();
-          var cursor = db.collection('rocketchat_livechat_Chatbot_Rules').find().sort({"priority":-1});
-          cursor.each(function(err, doc) {
-              if (doc !== null)  {
-                var event = doc.event;
-                if (doc.event.isDynamism === true) {
-                    event = setDynamicMessage(doc, current_response);
-                }
-                if (doc.context) {
-                    var isContextTrue = checkForContextExistence(doc, current_response);
-                    if (isContextTrue === false) {
-                        return;
+    var another_response = req.body.another_response;
+
+    MongoClient.connect(url, function(err, db) {
+        var engine = new Engine();
+        var cursor = db.collection('rocketchat_livechat_Chatbot_Rules').find().sort({"priority":-1});
+        cursor.each(function(err, doc) {
+            if (doc !== null)  {
+                if (doc.type === "pathBased") {
+                    var event = doc.event;
+                    var conditions = JSON.parse(JSON.stringify(doc.conditions));
+                    var previousData = JSON.parse(JSON.stringify(previous_response));
+                    var docProperty = doc.conditions.all[0].property;
+                    var docProperty1 = doc.conditions.all[0].property1;
+                    var docProperty2 = doc.conditions.all[0].property2;
+                    var data;
+                    for (var key in previousData) {
+                        if (key.indexOf(docProperty) !== -1) {
+                        data = previousData[key][docProperty1][docProperty2];
+                        }
                     }
-                }
-                engine.addRule({conditions : doc.conditions, 
-                                event : event}); 
-                var docFact = doc.fact;
-                engine.addFact(docFact, function (params, almanac) {
-                    return almanac.factValue('accountId')
+                    conditions.all[0].value = data;
+                    engine.addRule({conditions : conditions,
+                                    event : doc.event});
+                    var docFact = doc.fact;
+                    engine.addFact(docFact, function (params, almanac) {
+                        return almanac.factValue('accountId')
                         .then(accountId => {
-                        return apiClient.getCurrentData(accountId, current_response);
-                });
-                });
-                engine.run(facts)
+                        return apiClient.getCurrentData(accountId, getUpdatedCurrentResponse(current_response, another_response));
+                    });
+                    });
+                    engine.run(facts)
                     .then(events => {
-                    if (!events.length)  {
-                    }	else {
+                    if (!events.length)
+                        {}
+                    else {
                         events.map(event => event.params);
                         res.json(event.params);
+                    }}).catch(console.log);
+                } else {   
+                    var event = doc.event;
+                    if (doc.event.isDynamism === true) {
+                        event = setDynamicMessage(doc, current_response);
                     }
-            }).catch(console.log);
-        }
+                    if (doc.context) {
+                        var isContextTrue = checkForContextExistence(doc, current_response);
+                        if (isContextTrue === false) {
+                            return;
+                        }
+                    }
+                    engine.addRule({conditions : doc.conditions, 
+                                    event : event}); 
+                    var docFact = doc.fact;
+                    engine.addFact(docFact, function (params, almanac) {
+                        return almanac.factValue('accountId')
+                            .then(accountId => {
+                            return apiClient.getCurrentData(accountId, getUpdatedCurrentResponse(current_response, another_response));
+                    });
+                    });
+                    engine.run(facts)
+                        .then(events => {
+                        if (!events.length)  {
+                        
+                        } else {
+                            events.map(event => event.params);
+                            res.json(event.params);
+                        }
+                }).catch(console.log);
+            }
+    }
       });
     });
 });
@@ -85,6 +121,15 @@ function setDynamicMessage(doc, current_response) {
     return doc.event;
 }
   
+function getUpdatedCurrentResponse(current_response, another_response) {
+    var current_res = current_response.result;
+    for (var key in another_response) {
+        current_res[key] = another_response[key];
+    }
+    current_response['result'] = current_res;
+    return current_response;
+}
+
 var server = app.listen(8081, function () {
     var host = "localhost";
     var port = 8081;
