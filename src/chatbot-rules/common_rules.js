@@ -1,43 +1,30 @@
 'use strict';
 let Engine = require('/home/pbadmin/2017/json-rules-engine/dist').Engine;
-//let engine = new Engine();
+let engine = new Engine();
 let apiClient = require('./database-data');
-var Db = require('mongodb').Db;
-var Server = require('mongodb').Server;
-let facts = { accountId: 'result'};
-var sync    = require('synchronize');
 var MongoClient = require('mongodb').MongoClient;
-var assert = require('assert');
+var Db = require('mongodb').Db;
+let facts = { accountId: 'result'};
 var url = 'mongodb://10.0.8.62:27017/rocketchat_test';
 var mongo = require('mongoskin');
 var agentId = 1, actionId=1;
 var current_response = getCurrentResponse();
 var previous_response = getPreviousResponse();
-var another_response = getAnotherResponse()
-
-var callRules = function() {
-      var returnValue;
-     var db = mongo.db(url, {native_parser:true});
-      returnValue = findRule(db, current_response, previous_response, another_response);
-      console.log("returnvalueis:", returnValue);
-      return returnValue;
-};
+var another_response = getAnotherResponse();
 
 
-module.exports = {
-  callRules: callRules
-};
+ MongoClient.connect(url, function(err, db) {
+     findRule(db, current_response);
+ });
 
-var findRule = function(db, current_response, previous_response, another_response) {
+var findRule = function(db, current_response) {
    var count = 0;
    var returnValue;
-   var cursor = db.collection('rocketchat_livechat_Chatbot_Rules2').find({"agentId":agentId,
-                "actionId":actionId}).sort({"priority":-1});
+    var cursor = db.collection('rocketchat_livechat_Chatbot_Rules2').find({"agentId":agentId,
+                 "actionId":actionId}).sort({"priority":-1});
    cursor.each(function(err, doc) {
-      assert.equal(err, null);
       if (doc !== null) {
-             console.log("valuebased");
-            let engine = new Engine();
+            console.log("valuebased");
             var event = doc.event;
             if (doc.event.isDynamism === true) {
                 event = setDynamicMessage(doc);
@@ -55,7 +42,7 @@ var findRule = function(db, current_response, previous_response, another_respons
             engine.addFact(docFact, function (params, almanac) {
             return almanac.factValue('accountId')
             .then(accountId => {
-            return apiClient.getCurrentData(accountId, getUpdatedCurrentResponse(current_response, another_response));
+            return apiClient.getCurrentData(accountId, current_response);
     });
       });
          engine.run(facts)
@@ -70,15 +57,14 @@ var findRule = function(db, current_response, previous_response, another_respons
                 if (count>1) return;
                 events.map(event => event.params);
                 returnValue = event.params;
-                return returnValue;
+                console.log(returnValue);
             }}).catch(console.log);
             
     }
     else {
-         // callback();
+          //callback();
         }
-   });
-   return returnValue;
+});
 };
 
 function setDynamicMessage(doc) {
@@ -108,7 +94,7 @@ function getPreviousResponse() {
     "source": "agent",
     "resolvedQuery": "idv\\n",
     "action": "Quote-SetIDV",
-    "actionIncomplete": true,
+    "actionIncomplete": false,
     "parameters": {
       "TargetIDV": ""	
     },
@@ -189,7 +175,7 @@ function getCurrentResponse() {
         "lifespan": 2
       },
       {
-        "name": "getquoteregistrationnumber_dialog_params_previousncb",
+        "name": "getquoteregistrationnumber_dialog_params_previousinsurer",
         "parameters": {
           "TargetIDV.original": "",
           "TargetIDV": ""
