@@ -13,14 +13,9 @@ let apiClient = require('./database-data');
 let facts = { accountId: 'result'};
 var url = 'mongodb://10.0.8.62:27017/rocketchat_test';
 
-//var current_response = getCurrentResponse();
-//var previous_response = getPreviousResponse();
-//var another_response = getAnotherResponse();
-
 app.post('/rules', jsonParser, function (req, res) {
-    console.log("in rules");
     var current_response = req.body.current_response;
-    var previous_response = getPreviousResponse();
+    var previous_response = req.body.previous_response;
     var another_response = getAnotherResponse();
 
     MongoClient.connect(url, function(err, db) {
@@ -28,7 +23,7 @@ app.post('/rules', jsonParser, function (req, res) {
         var cursor = db.collection('rocketchat_livechat_Chatbot_Rules2').find().sort({"priority":-1});
         cursor.each(function(err, doc) {
             if (doc !== null)  {
-                if (doc.type === "pathBased") {
+                if (doc.type === "pathBased" && typeof previous_response != 'undefined') {
                     var event = doc.event;
                     var conditions = JSON.parse(JSON.stringify(doc.conditions));
                     var previousData = JSON.parse(JSON.stringify(previous_response));
@@ -57,9 +52,9 @@ app.post('/rules', jsonParser, function (req, res) {
                         {}
                     else {
                         events.map(event => event.params);
-                        res.json(event.params);
+                        res.json(event);
                     }}).catch(console.log);
-                } else {   
+                } else {    
                     var event = doc.event;
                     if (doc.event.isDynamism === true) {
                         event = setDynamicMessage(doc, current_response);
@@ -82,11 +77,9 @@ app.post('/rules', jsonParser, function (req, res) {
                     engine.run(facts)
                         .then(events => {
                         if (!events.length)  {
-                            console.log("no event length.."+events.length);
                         } else {
                             events.map(event => event.params);
-                            console.log("no event length.."+events.length);
-                            res.json(event.params);
+                            res.json(event);
                         }
                 }).catch(console.log);
             }
@@ -105,6 +98,7 @@ function checkForContextExistence(doc, current_response) {
         var res = str.split("_");
         var contextName = res[res.length - 1];
         if (contextName === doc.context.contextName) {
+            console.log("returning from context.."+contextName + "and true..");
             return true;
         }
     }
@@ -124,7 +118,10 @@ function setDynamicMessage(doc, current_response) {
             
         }
     }
+    console.log("set dynamic message..."+data);
     doc.event.params.dynamicMessage = data;
+    console.log("set dynamic message..."+data);
+
     return doc.event;
 }
   
@@ -278,7 +275,7 @@ function getAnotherResponse() {
 }
 
 var server = app.listen(8081, function () {
-    var host = "10.0.56.81";
+    var host = "localhost";
     var port = 8081;
     console.log("Example app listening at http://%s:%s", host, port);
 
