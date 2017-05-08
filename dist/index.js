@@ -10,82 +10,65 @@ var jsonParser = bodyParser.json();
 var Engine = require('.').Engine;
 var MongoClient = require('mongodb').MongoClient;
 let apiClient = require('./database-data');
-let facts = { accountId: 'result'};
+let facts = { accountId: 'requestData'};
 var url = 'mongodb://10.0.8.62:27017/rocketchat_test';
 
 app.post('/rules', jsonParser, function (req, res) {
-    var current_response = req.body.current_response;
-    var previous_response = req.body.previous_response;
-    var another_response = getAnotherResponse();
-
+  console.log("in new rules/...");
+    var requestdataValue= req.body;
+    console.log("request data..");
+    console.log(requestdataValue);
+    console.log("request data contexts..");
+    console.log(requestdataValue.requestData.current_response.result.contexts);
+    var counter = 0;
     MongoClient.connect(url, function(err, db) {
+      
         var engine = new Engine();
-        var cursor = db.collection('rocketchat_livechat_Chatbot_Rules2').find().sort({"priority":-1});
-        cursor.each(function(err, doc) {
+        var cursor = db.collection('rocketchat_livechat_Chatbot_Rules3').find({"isActive":true}).sort({"priority":-1});
+        var cursorCount = cursor.count(function(err, count) {
+            console.log(count);
+            cursor.each(function(err, doc) {
             if (doc !== null)  {
-                if (doc.type === "pathBased" && typeof previous_response != 'undefined') {
                     var event = doc.event;
-                    var conditions = JSON.parse(JSON.stringify(doc.conditions));
-                    var previousData = JSON.parse(JSON.stringify(previous_response));
-                    var docProperty = doc.conditions.all[0].property;
-                    var docProperty1 = doc.conditions.all[0].property1;
-                    var docProperty2 = doc.conditions.all[0].property2;
-                    var data;
-                    for (var key in previousData) {
-                        if (key.indexOf(docProperty) !== -1) {
-                        data = previousData[key][docProperty1][docProperty2];
-                        }
-                    }
-                    conditions.all[0].value = data;
-                    engine.addRule({conditions : conditions,
-                                    event : doc.event});
-                    var docFact = doc.fact;
-                    engine.addFact(docFact, function (params, almanac) {
-                        return almanac.factValue('accountId')
-                        .then(accountId => {
-                        return apiClient.getCurrentData(accountId, current_response);
-                    });
-                    });
-                    engine.run(facts)
-                    .then(events => {
-                    if (!events.length)
-                        {}
-                    else {
-                        events.map(event => event.params);
-                        res.json(event);
-                    }}).catch(console.log);
-                } else {    
-                    var event = doc.event;
-                    if (doc.event.isDynamism === true) {
-                        event = setDynamicMessage(doc, current_response);
-                    }
-                    if (doc.context) {
-                        var isContextTrue = checkForContextExistence(doc, current_response);
-                        if (isContextTrue === false) {
-                            return;
-                        }
-                    }
+                    console.log("in event");
                     engine.addRule({conditions : doc.conditions, 
                                     event : event}); 
                     var docFact = doc.fact;
+                    console.log(docFact);
                     engine.addFact(docFact, function (params, almanac) {
                         return almanac.factValue('accountId')
                             .then(accountId => {
-                            return apiClient.getCurrentData(accountId, current_response);
+                            return apiClient.getCurrentData(accountId, requestdataValue);
                     });
                     });
                     engine.run(facts)
                         .then(events => {
                         if (!events.length)  {
+                              counter = counter+1;
+                              if (counter == count) {
+                                  res.json(null);
+                              }
+                              
                         } else {
                             events.map(event => event.params);
+                            console.log("event length");
+                            count = 1;
                             res.json(event);
                         }
                 }).catch(console.log);
             }
-    }
       });
+        })
+      
+   
     });
+    //  if (count === -1) {
+    //   console.log("coming here..."+count);
+    //   res.json(null);
+    // } else {
+    //   console.log("coming here true..."+count);
+    //   res.json(event);
+    // }
 });
 
 
