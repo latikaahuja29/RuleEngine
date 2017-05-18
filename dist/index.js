@@ -8,27 +8,31 @@ var bodyParser = require('body-parser');
 var jsonParser = bodyParser.json();
 var Engine = require('.').Engine;
 var MongoClient = require('mongodb').MongoClient;
+var cfg = require('./config');
 let apiClient = require('./database-data');
 let facts = { accountId: 'requestData'};
-var url = 'mongodb://10.0.8.62.:27017/rocketchat_test';
+var url = cfg.mongo.url;
+
 
 app.post('/rules', jsonParser, function (req, res) {
-  console.log("in new rules/...");
+  console.log("url is:" + url);
     var requestdataValue= req.body;
-    console.log("request data..");
-    console.log(requestdataValue);
-    console.log("request data contexts..");
-    console.log(requestdataValue.requestData.current_response.result.contexts);
     var counter = 0;
     MongoClient.connect(url, function(err, db) {
         var engine = new Engine();
         var cursor = db.collection('rocketchat_livechat_Chatbot_Rules3').find({"isActive":true}).sort({"priority":-1});
         var cursorCount = cursor.count(function(err, count) {
-            console.log(count);
             cursor.each(function(err, doc) {
             if (doc !== null)  {
                     var event = doc.event;
-                    console.log("in event");
+                    // if (doc.keyToFind) {
+                    //     var isContextTrue = checkForContextExistence(doc, requestdataValue.requestData.current_response);
+                    //     console.log("iscontexttrue"+ isContextTrue);
+                    //     if (isContextTrue === false) {
+                    //         return;
+                    //    }
+                    // }
+                   
                     engine.addRule({conditions : doc.conditions, 
                                     event : event}); 
                     var docFact = doc.fact;
@@ -42,6 +46,8 @@ app.post('/rules', jsonParser, function (req, res) {
                     engine.run(facts)
                         .then(events => {
                         if (!events.length)  {
+                           console.log("no event length");
+                            console.log(events.length);
                               counter = counter+1;
                               if (counter == count) {
                                   res.json(null);
@@ -49,6 +55,7 @@ app.post('/rules', jsonParser, function (req, res) {
                         } else {
                             events.map(event => event.params);
                             console.log("event length");
+                            console.log(events.length);
                             count = 1;
                             res.json(event);
                         }
@@ -58,6 +65,25 @@ app.post('/rules', jsonParser, function (req, res) {
         })
     });
 });
+
+
+function checkForContextExistence(doc, current_response) {
+    console.log("in contexts//" + current_response);
+    var result = current_response.result;
+    var correctResult;
+     for (var key in result) {
+          if (key == doc.keyToFind) {
+              correctResult = result[key];
+          } 
+    }
+    for (var i = 0; i < correctResult.length; i++) {
+        var currentContext = correctResult[i];
+        if (currentContext.name === doc.valueToFind) {
+            return true;
+        }
+    }
+    return false;
+}  
 
 
 function getPreviousResponse() {
@@ -142,7 +168,7 @@ function getCurrentResponse() {
     },
     "contexts": [
       {
-        "name": "quote-setidv_dialog_context",
+        "name": "quote-getquoteregistrationnumber_dialog_params_make",
         "parameters": {
           "TargetIDV.original": "",
           "TargetIDV": ""
