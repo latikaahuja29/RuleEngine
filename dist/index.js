@@ -1,6 +1,5 @@
 'use strict';
 require('./generator-runtime');
-
 module.exports = require('./json-rules-engine');
 
 var express = require('express');
@@ -11,7 +10,7 @@ var Engine = require('.').Engine;
 var MongoClient = require('mongodb').MongoClient;
 let apiClient = require('./database-data');
 let facts = { accountId: 'requestData'};
-var url = 'mongodb://10.0.8.62:27017/rocketchat_test';
+var url = 'mongodb://10.0.8.62.:27017/rocketchat_test';
 
 app.post('/rules', jsonParser, function (req, res) {
   console.log("in new rules/...");
@@ -22,7 +21,6 @@ app.post('/rules', jsonParser, function (req, res) {
     console.log(requestdataValue.requestData.current_response.result.contexts);
     var counter = 0;
     MongoClient.connect(url, function(err, db) {
-      
         var engine = new Engine();
         var cursor = db.collection('rocketchat_livechat_Chatbot_Rules3').find({"isActive":true}).sort({"priority":-1});
         var cursorCount = cursor.count(function(err, count) {
@@ -48,7 +46,6 @@ app.post('/rules', jsonParser, function (req, res) {
                               if (counter == count) {
                                   res.json(null);
                               }
-                              
                         } else {
                             events.map(event => event.params);
                             console.log("event length");
@@ -59,63 +56,9 @@ app.post('/rules', jsonParser, function (req, res) {
             }
       });
         })
-      
-   
     });
-    //  if (count === -1) {
-    //   console.log("coming here..."+count);
-    //   res.json(null);
-    // } else {
-    //   console.log("coming here true..."+count);
-    //   res.json(event);
-    // }
 });
 
-
-function checkForContextExistence(doc, current_response) {
-    console.log("in contexts//" + current_response);
-    var contexts = current_response.result.contexts;
-    for (var i = 0; i < contexts.length; i++) {
-        var currentContext = contexts[i];
-        var str = currentContext.name;
-        var res = str.split("_");
-        var contextName = res[res.length - 1];
-        if (contextName === doc.context.contextName) {
-            console.log("returning from context.."+contextName + "and true..");
-            return true;
-        }
-    }
-    return false;
-}  
-
-function setDynamicMessage(doc, current_response) {
-    var events = JSON.parse(JSON.stringify(doc.event)); 
-    var listOfDynamicKeys = events.params.dynamicKeys;
-    var docProperty = listOfDynamicKeys[0];
-    var docProperty1 = listOfDynamicKeys[1];
-    var docProperty2 = listOfDynamicKeys[2];
-    var data;
-    for (var key in current_response) {
-        if (key.indexOf(docProperty) !== -1) {
-            data = current_response[key][docProperty1][docProperty2];
-            
-        }
-    }
-    console.log("set dynamic message..."+data);
-    doc.event.params.dynamicMessage = data;
-    console.log("set dynamic message..."+data);
-
-    return doc.event;
-}
-  
-function getUpdatedCurrentResponse(current_response, another_response) {
-    var current_res = current_response.result;
-    for (var key in another_response) {
-        current_res[key] = another_response[key];
-    }
-    current_response['result'] = current_res;
-    return current_response;
-}
 
 function getPreviousResponse() {
   let previous_response =  {
